@@ -14,6 +14,8 @@ from shivyc.parser.parser import parse
 from shivyc.il_gen import ILCode, SymbolTable, Context
 from shivyc.asm_gen import ASMCode, ASMGen
 
+from shivyc.c_preprocessor import preprocess
+
 
 def main():
     """Run the main compiler script."""
@@ -58,13 +60,15 @@ def process_c_file(file, args):
     if not error_collector.ok():
         return None
 
+    _, code = preprocess(code, file)
+
     token_list = lexer.tokenize(code, file)
     if not error_collector.ok():
         return None
 
-    token_list = preproc.process(token_list, file)
-    if not error_collector.ok():
-        return None
+    #token_list = preproc.process(token_list, file)
+    #if not error_collector.ok():
+        #return None
 
     # If parse() can salvage the input into a parse tree, it may emit an
     # ast_root even when there are errors saved to the error_collector. In this
