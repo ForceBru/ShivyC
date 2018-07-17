@@ -3,6 +3,53 @@ from .tokenize import PreprocToken
 
 import re
 
+"""
+This is the parser for the C preprocessor.
+
+Features supported:
+    * Macros:
+        #define VAR
+        #define VAR VALUE
+        #define FUNCTION(a, b, c) DO_STUFF_WITH(a, b, c)
+        #undef VAR
+    * File inclusion:
+        #include <global>
+        #include "local"
+    * Errors and warnings:
+        #error "This is an error!"
+        #warning "Warning message"
+    * Conditional execution:
+        #if <expression, possibly including 'defined' and other macros>
+        #ifdef MACRO
+        #ifndef MACRO
+        #elif <expression, possibly including 'defined' and other macros>
+        #else
+        #endif
+    * Recognition and processing of non-preprocessor directives
+    
+TODO:
+    * Concatenation:
+        VAR1 ## VAR2
+    * Stringification:
+        #VAR
+        
+This might be buggy, so be warned.
+
+PREPROCESSOR GRAMMAR USED HERE (in BNF; if a name does not appear on the right side of the ':=' sign, it's a terminal,
+    whose definition is to be looked up in 'c_preprocessor.tokens'):
+    
+    control     := define_simple | define_value | define_function | undef | include_globl | include_local | error | warning | conditional
+    conditional := if_str text elif_blocks else_block endif
+    if_str      := if | ifdef | ifndef
+    elif_blocks := elif text elif_blocks | empty
+    else_block  := else text | empty
+    text        := control text | c_code text | empty
+    
+Although the 'empty' symbol is defined in 'c_preprocessor.tokens', it does not actually appear in the token stream and is
+    used as as a special symbol.
+This grammar is LL(1).
+"""
+
 types = Preproc.Tok_types
 
 class Code:
@@ -17,11 +64,22 @@ class Code:
 
 
 class Parser:
+    """
+    This is a predictive recursive descent parser that translates the preprocessor language to Python
+
+    It parses through the token stream and generates equivalent Python code for each construct.
+    """
     def __init__(self, file_path, tokens, First: dict, Follow: dict):
-        #self.tokens = list(tokens)
+        """
+
+        :param file_path: the path to the given file
+        :param tokens: the tokens the contents of the file were tokenized into
+        :param First: the first set for the above grammar
+        :param Follow: the follow set for the above grammar
+        """
         self.file_path = str(file_path)
         self.tokens = iter(tokens)
-        #self.pos, self.end = 0, 1#len(self.tokens)
+
         self.pos, self.EOF = 0, False
         self.First, self.Follow = First, Follow
 
@@ -39,9 +97,6 @@ class Parser:
             self._lookahead = PreprocToken(types.EOF, [''], self.pos)
 
         return self._lookahead
-
-        return self._lookahead if not self.EOF else PreprocToken(types.EOF, [''], self.pos)
-        #return self.tokens[self.pos] if self.pos < self.end else Token(types.EOF, [''], self.end)
 
     def match(self, tok_type):
         if self.lookahead.type == tok_type:
@@ -273,7 +328,12 @@ def defined(name: str):
         self.parse_text()
 
         if not self.EOF:
-            raise RuntimeError('There was an unknown error during parsing')
+            # sometimes we don't hit EOF, tha's probably fine
+            self.match(self.lookahead.type)
+
+            # but if the next character is not EOF either, there's a problem
+            if not self.EOF:
+                raise RuntimeError('There was an unknown error during parsing: ', self.lookahead)
 
         return self.code
 
@@ -302,12 +362,7 @@ if __name__ == "__main__":
     import tokenize
     import time
 
-    fname = "../preprocessor_old/failed.c"
-    #with open('/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h') as f:
-    with open(fname) as f:
-        code = f.read()
-
-    code_ = '''
+    code = '''
 #ifndef _CDEFS_H_
 #define _CDEFS_H_
 #if !defined(__sys_cdefs_arch_unknown__) && defined(__i386__)
@@ -350,7 +405,7 @@ if __name__ == "__main__":
 #endif
     '''
 
-    print(f"Loaded code: {len(code)} bytes")
+    fname = 'file.c'
 
     print("First pass...")
     s = time.process_time()

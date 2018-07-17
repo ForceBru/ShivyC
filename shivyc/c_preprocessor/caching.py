@@ -4,6 +4,9 @@ import os.path
 import marshal
 
 class Cache:
+    """
+    This class is responsible for caching the results of translating the preprocessor code to Python.
+    """
     def __init__(self, cache_path: str):
         self.path = cache_path
 
@@ -39,7 +42,6 @@ class Cache:
 
         return compiled
 
-
     def __getitem__(self, file_path):
         assert isinstance(file_path, str)
 
@@ -51,8 +53,8 @@ class Cache:
         with open(cache_path, 'rb') as f:
             try:
                 return marshal.load(f)
-            except:
-                raise KeyError(f'File {file_path!r} was found, but failed to load')
+            except (EOFError, ValueError, TypeError) as e:
+                raise KeyError(f'File {file_path!r} was found, but failed to load because: {e}')
 
 
 if __name__ == '__main__':

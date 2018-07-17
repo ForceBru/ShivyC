@@ -8,11 +8,32 @@ from . import parse
 
 from . import caching
 
+"""
+This does the actual preprocessing:
+
+    * Transpiles the preprocessor directives of the program to Python
+    * Executes the resulting Python code
+        * This code does the actual macro definition, conditional compilation and file inclusion
+        * It also attempts to do macro substitution for each 'c_code' token
+    * Outputs the resulting C code without any preprocessor directives
+    
+WARNING: when a file is included for the first time, it must undergo the process described above. Depending on its
+    size and complexity, it may take some time to process it. However, all the files except the one that initiated the process
+    are cached, so that including them later will be lightning-fast.
+"""
+
 
 CACHE = caching.Cache('cache')
 
 
-def preprocessor_to_python(code: str, file_path: str, cache=True) -> str:
+def preprocessor_to_python(code: str, file_path: str, cache=True):
+    """
+
+    :param code: the code to translate to Python
+    :param file_path: the path to the file to be translated
+    :param cache: whether o cache the result or not (should be True for included files)
+    :return:
+    """
     if cache:
         try:
             compiled = CACHE[file_path]
@@ -71,14 +92,14 @@ def include(fname: str, paths: list, GLOBALS: dict, current_file_path: str, loca
 
         try:
             with open(full_path, encoding='utf8') as f:
-                #print(f"Including file {full_path!r}...")
+                print(f"Including file {full_path!r}...")
                 header_data = f.read()
 
                 python_code = preprocessor_to_python(header_data, full_path)
 
                 exec(python_code, GLOBALS, {}) # this modifies GLOBALS in-place
 
-                #print(f'Included file {full_path!r}')
+                print(f'Included file {full_path!r}')
 
                 return
         except FileNotFoundError as e:
@@ -167,7 +188,7 @@ def substitute_variables(code: str, namespace: dict):
     return ' '.join(tok.value for tok in Tokens if tok.value)
 
 
-def preprocess(code, file_name: str, cache=False, paths_global=[], paths_local=['.'], namespace={}):
+def preprocess(code: str, file_name: str, cache=False, paths_global=[], paths_local=['.'], namespace={}):
     python_code = preprocessor_to_python(code, file_name, cache)
 
     result = []
@@ -183,6 +204,7 @@ def preprocess(code, file_name: str, cache=False, paths_global=[], paths_local=[
         'get_value_by_name'   : get_value_by_name
         }
 
+    # this does the substitution and conditional compilation and writes the appropriate lines of C code into a list called 'result'
     exec(python_code, GLOBALS, {})
 
     c_code = '\n'.join(result)
@@ -208,7 +230,7 @@ int main() {
         '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include',
         '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'
         ]
-    namespace = {'__i386__': True}
+    namespace = {'__i386__': True, 'DEBUG': True}
 
 
     namespace, c_code = preprocess(code, 'file.c', paths_global=paths_global, namespace=namespace)

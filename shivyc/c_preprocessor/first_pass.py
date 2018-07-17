@@ -1,5 +1,10 @@
 import re
-import os
+
+"""
+This implements the first pass of the preprocessor:
+    * Splices the string
+    * Removes all comments from the code
+"""
 
 
 def splice(string: str) -> str:

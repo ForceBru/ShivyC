@@ -1,6 +1,17 @@
 import re
 import enum
 
+"""
+This file contains all the token types the parser for the preprocessor language recognizes.
+They're split into two parts:
+    'Preproc.Tok_types' contains the instruction tokens (like 'define', 'include', etc)
+    'Expr.Tok_types' contains tokens necessary to pythonize expressions and tokenize C code to do substitution later on
+    
+"Pythonizing expressions" means making expressions after '#if' and '#elif' executable by the Python interpreter. This includes
+removing the 'L' or 'U' suffixes after an integer, retrieving names defined by '#define' and converting some operators
+(like '||' and '&&') into their Python synonyms.
+"""
+
 
 class Token:
     def __init__(self, type, matchobj, lineno: int):
@@ -16,14 +27,11 @@ class Token:
 s, s_ = r'[ \t]', r'[ \t]*'  # space
 n, n_ = r'[\r\n]', r'[^\r\n]' # newline
 id = r'[a-zA-Z_][a-zA-Z_0-9]*'
-#ID = r'[a-zA-Z_][a-zA-Z_0-9]*'
 file_name = r'[a-zA-Z_0-9./-]+'
 control = lambda name: fr'{s_}#{s_}{name}{s}'
 
+# these are the regular expressions used to extract various tokens by 'c_preprocessor.tokenize.tokenize'
 preproc_tok_regexes = {
-    #'define_simple': fr'{control("define")}+({id}){s_}{n}',
-    #'define_func'  : fr'{control("define")}+({id}){s_}\(({s_}(({id})|(\.\.\.))({s_},{s_}(({id})|(\.\.\.)))*{s_})?\){s_}({s}+({n_}+))?{n}',
-    #'define_value' : fr'{control("define")}+({id}){s}+({n_}+){n}',
     'define_simple': fr'(?P<define_simple>{s_}#{s_}define{s}+(?P<name>[a-zA-Z_]\w*){s_}(?:\n|\Z))',
     'define_func'  : fr'(?P<define_func>{s_}#{s_}define{s}+(?P<name>[a-zA-Z_]\w*)\({s_}(?P<args>(?:(?:\.\.\.)|[a-zA-Z_]\w*)(?:(?<!\.\.\.)(?:{s_},{s_}(?:(?:\.\.\.)|[a-zA-Z_]\w*)))*)?{s_}\)(?:{s_}|(?:{s}+(?P<value>[^\n]+)))(?:\n|\Z))',
     'define_value' : fr'(?P<define_value>{s_}#{s_}define[ \t]+(?P<name>[a-zA-Z_]\w*){s}+(?P<value>[^\n]+)(?:\n|\Z))',
@@ -103,6 +111,7 @@ expr_tok_regexes = {
     }
 
 
+# these are all the token types the lexer recognizes
 class Preproc:
     Tok_types = enum.Enum('Tok_types_p', {key: re.compile(value) for key, value in preproc_tok_regexes.items()})
 

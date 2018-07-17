@@ -2,6 +2,16 @@ import os
 
 from . import tokens
 
+"""
+This file is responsible for tokenizing, or lexing, the code supplied to the preprocessor.
+
+The two main functions are:
+    'tokenize' - when given a string and the possible token types, yields instances of some class 'token_class' that
+        represent single tokens; yields preprocessor tokens by default
+    'pythonize' - when given a string, tokenizes it as if it was C code and attempts to replace some operators with their
+        Python equivalents
+"""
+
 
 class PreprocToken(tokens.Token):
     def parse(self) -> 'tuple of str':
@@ -124,9 +134,6 @@ int main() {
 }
     '''
     code = first_pass.first_pass(code)
-
-    with open('../preprocessor_old/failed.c', encoding='utf8') as f:
-        code = f.read()
 
     s0 = time.process_time()
     code = first_pass.first_pass(code)
